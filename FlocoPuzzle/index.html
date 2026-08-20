@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>FLOCO Puzzle ❄️</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: radial-gradient(circle at top, #0b3a4a 0%, #06202e 55%, #030f18 100%);
+    color: #eaf6ff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+  }
+  h1 {
+    margin: 4px 0 2px;
+    font-size: 24px;
+    background: linear-gradient(90deg, #d8fff0, #7fe8c7, #7fc7ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 380px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(127,230,200,0.35);
+    border-radius: 16px;
+    padding: 10px 16px;
+    margin: 10px 0;
+  }
+  .floco-count {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 20px;
+    font-weight: 700;
+    color: #d8fff0;
+  }
+  .floco-count span.icon { font-size: 22px; }
+  #best { font-size: 12px; color: #8fd8c7; }
+  .wallet-btn {
+    background: linear-gradient(90deg, #1a9b7a, #3fc7a8);
+    border: none;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    grid-template-rows: repeat(9, 1fr);
+    gap: 3px;
+    width: min(92vw, 380px);
+    aspect-ratio: 1 / 1;
+    background: #0a2530;
+    border: 2px solid rgba(127,230,200,0.4);
+    border-radius: 12px;
+    padding: 6px;
+    margin-top: 6px;
+  }
+  .cell {
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+    transition: background 0.15s ease;
+  }
+  .cell.filled {
+    background: linear-gradient(135deg, #3fc7a8, #1a6fb5);
+    box-shadow: inset 0 0 4px rgba(255,255,255,0.4);
+  }
+  #tray {
+    display: flex;
+    gap: 14px;
+    margin-top: 18px;
+    width: min(92vw, 380px);
+    justify-content: center;
+  }
+  .piece-slot {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(127,230,200,0.3);
+    border-radius: 10px;
+    width: 92px;
+    height: 92px;
+    display: grid;
+    padding: 6px;
+    cursor: pointer;
+  }
+  .piece-slot.empty { opacity: 0.25; cursor: default; }
+  .piece-cell { background: transparent; border-radius: 2px; }
+  .piece-cell.on {
+    background: linear-gradient(135deg, #7fe8c7, #4fa8e8);
+  }
+  #status {
+    margin-top: 14px;
+    font-size: 13px;
+    min-height: 18px;
+    color: #8fd8c7;
+    text-align: center;
+  }
+  #status.error { color: #ff9e9e; }
+  #gameover {
+    position: fixed;
+    inset: 0;
+    background: rgba(3,15,24,0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+    z-index: 10;
+  }
+  #gameover.show { display: flex; }
+  #gameover h2 { font-size: 26px; color: #d8fff0; }
+  #gameover button {
+    background: linear-gradient(90deg, #1a9b7a, #3fc7a8);
+    border: none;
+    color: white;
+    padding: 12px 26px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .snow { position: fixed; top: -10px; color: rgba(255,255,255,0.6); font-size: 14px; pointer-events: none; animation: fall linear infinite; }
+  @keyframes fall { to { transform: translateY(105vh); } }
+</style>
+</head>
+<body>
+
+<h1>❄️ FLOCO Puzzle</h1>
+
+<div class="topbar">
+  <div>
+    <div class="floco-count"><span class="icon">❄️</span><span id="score">0</span></div>
+    <div id="best">Record : <span id="bestScore">0</span></div>
+  </div>
+  <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">🦊 Connecter</button>
+</div>
+
+<div id="board"></div>
+
+<div id="tray"></div>
+
+<div id="status"></div>
+
+<div id="gameover">
+  <h2>Plus de coup possible ❄️</h2>
+  <div id="finalScore" style="font-size:18px;"></div>
+  <button onclick="resetGame()">Rejouer</button>
+</div>
+
+<script>
+const SIZE = 9;
+const CELL_COUNT = SIZE * SIZE;
+let boardState = new Array(CELL_COUNT).fill(0);
+let score = 0;
+let best = parseInt(localStorage.getItem('flocoPuzzleBest') || '0');
+let tray = [];
+let draggingPiece = null;
+let walletAddress = null;
+
+const SHAPES = [
+  [[1]],
+  [[1,1]],
+  [[1],[1]],
+  [[1,1,1]],
+  [[1],[1],[1]],
+  [[1,1],[1,1]],
+  [[1,1,1],[1,0,0]],
+  [[1,1,1],[0,0,1]],
+  [[1,0],[1,0],[1,1]],
+  [[0,1],[0,1],[1,1]],
+  [[1,1,1,1]],
+  [[1],[1],[1],[1]],
+  [[1,1],[1,0]],
+  [[1,1],[0,1]],
+];
+
+const boardEl = document.getElementById('board');
+const trayEl = document.getElementById('tray');
+const scoreEl = document.getElementById('score');
+const bestEl = document.getElementById('bestScore');
+const statusEl = document.getElementById('status');
+
+function initBoard() {
+  boardEl.innerHTML = '';
+  for (let i = 0; i < CELL_COUNT; i++) {
+    const c = document.createElement('div');
+    c.className = 'cell';
+    c.dataset.index = i;
+    c.addEventListener('click', () => tryPlaceAt(i));
+    boardEl.appendChild(c);
+  }
+}
+
+function renderBoard() {
+  const cells = boardEl.children;
+  for (let i = 0; i < CELL_COUNT; i++) {
+    cells[i].className = 'cell' + (boardState[i] ? ' filled' : '');
+  }
+}
+
+function randomShape() {
+  return SHAPES[Math.floor(Math.random() * SHAPES.length)];
+}
+
+function refillTray() {
+  tray = [randomShape(), randomShape(), randomShape()];
+  renderTray();
+}
+
+function renderTray() {
+  trayEl.innerHTML = '';
+  tray.forEach((shape, idx) => {
+    const slot = document.createElement('div');
+    slot.className = 'piece-slot' + (shape === null ? ' empty' : '');
+    if (shape) {
+      const rows = shape.length, cols = shape[0].length;
+      slot.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      slot.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+      shape.forEach(row => row.forEach(v => {
+        const pc = document.createElement('div');
+        pc.className = 'piece-cell' + (v ? ' on' : '');
+        slot.appendChild(pc);
+      }));
+      slot.onclick = () => selectPiece(idx);
+      if (draggingPiece === idx) slot.style.outline = '2px solid #7fe8c7';
+    }
+    trayEl.appendChild(slot);
+  });
+}
+
+function selectPiece(idx) {
+  draggingPiece = (draggingPiece === idx) ? null : idx;
+  renderTray();
+  setStatus(draggingPiece !== null ? "Pièce sélectionnée — touche la grille pour la poser." : "");
+}
+
+function shapeFits(shape, topLeftIndex) {
+  const row0 = Math.floor(topLeftIndex / SIZE);
+  const col0 = topLeftIndex % SIZE;
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[r].length; c++) {
+      if (!shape[r][c]) continue;
+      const rr = row0 + r, cc = col0 + c;
+      if (rr >= SIZE || cc >= SIZE) return false;
+      if (boardState[rr * SIZE + cc]) return false;
+    }
+  }
+  return true;
+}
+
+function canPlaceAnywhere(shape) {
+  for (let i = 0; i < CELL_COUNT; i++) {
+    if (shapeFits(shape, i)) return true;
+  }
+  return false;
+}
+
+function tryPlaceAt(index) {
+  if (draggingPiece === null) return;
+  const shape = tray[draggingPiece];
+  if (!shape) return;
+  if (!shapeFits(shape, index)) {
+    setStatus("Ça ne rentre pas ici ❌", true);
+    return;
+  }
+  const row0 = Math.floor(index / SIZE), col0 = index % SIZE;
+  let placed = 0;
+  shape.forEach((row, r) => row.forEach((v, c) => {
+    if (v) { boardState[(row0+r)*SIZE + (col0+c)] = 1; placed++; }
+  }));
+  tray[draggingPiece] = null;
+  draggingPiece = null;
+  score += placed;
+  clearLines();
+  renderBoard();
+  renderTray();
+  updateScore();
+  setStatus("");
+
+  if (tray.every(t => t === null)) refillTray();
+  checkGameOver();
+}
+
+function clearLines() {
+  let cleared = 0;
+  for (let r = 0; r < SIZE; r++) {
+    let full = true;
+    for (let c = 0; c < SIZE; c++) if (!boardState[r*SIZE+c]) { full = false; break; }
+    if (full) { for (let c = 0; c < SIZE; c++) boardState[r*SIZE+c] = 0; cleared++; }
+  }
+  for (let c = 0; c < SIZE; c++) {
+    let full = true;
+    for (let r = 0; r < SIZE; r++) if (!boardState[r*SIZE+c]) { full = false; break; }
+    if (full) { for (let r = 0; r < SIZE; r++) boardState[r*SIZE+c] = 0; cleared++; }
+  }
+  if (cleared > 0) score += cleared * 9;
+}
+
+function updateScore() {
+  scoreEl.textContent = score;
+  if (score > best) {
+    best = score;
+    localStorage.setItem('flocoPuzzleBest', best);
+  }
+  bestEl.textContent = best;
+}
+
+function checkGameOver() {
+  const remaining = tray.filter(t => t !== null);
+  const stuck = remaining.every(shape => !canPlaceAnywhere(shape));
+  if (remaining.length > 0 && stuck) {
+    document.getElementById('finalScore').textContent = `Score final : ${score} FLOCO`;
+    document.getElementById('gameover').classList.add('show');
+  }
+}
+
+function resetGame() {
+  boardState = new Array(CELL_COUNT).fill(0);
+  score = 0;
+  draggingPiece = null;
+  document.getElementById('gameover').classList.remove('show');
+  renderBoard();
+  refillTray();
+  updateScore();
+}
+
+function setStatus(msg, isError) {
+  statusEl.textContent = msg;
+  statusEl.className = isError ? 'error' : '';
+}
+
+async function connectWallet() {
+  if (!window.ethereum) {
+    setStatus("MetaMask non détecté. Ouvre cette page via le navigateur intégré MetaMask.", true);
+    return;
+  }
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    walletAddress = accounts[0];
+    document.getElementById('walletBtn').textContent = walletAddress.slice(0,6) + "..." + walletAddress.slice(-4);
+    setStatus("Wallet connecté. Joue pour gagner des FLOCO !");
+  } catch (e) {
+    setStatus("Connexion refusée.", true);
+  }
+}
+
+function spawnSnow() {
+  const s = document.createElement('div');
+  s.className = 'snow';
+  s.textContent = '❄';
+  s.style.left = Math.random() * 100 + 'vw';
+  s.style.animationDuration = (5 + Math.random() * 6) + 's';
+  s.style.fontSize = (10 + Math.random() * 10) + 'px';
+  document.body.appendChild(s);
+  setTimeout(() => s.remove(), 12000);
+}
+setInterval(spawnSnow, 800);
+
+initBoard();
+refillTray();
+updateScore();
+</script>
+
+</body>
+</html>

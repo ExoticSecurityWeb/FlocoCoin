@@ -89,13 +89,18 @@
     border-radius: 10px;
     width: 92px;
     height: 92px;
-    display: grid;
-    gap: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 6px;
     cursor: pointer;
   }
   .piece-slot.empty { opacity: 0.25; cursor: default; }
-  .piece-cell { background: transparent; border-radius: 2px; }
+  .piece-grid {
+    display: grid;
+    gap: 3px;
+  }
+  .piece-cell { background: transparent; border-radius: 2px; width: 22px; height: 22px; }
   .piece-cell.on {
     background: url('assets/tile-filled.png') center/cover;
     border-radius: 3px;
@@ -232,13 +237,16 @@ function renderTray() {
     slot.className = 'piece-slot' + (shape === null ? ' empty' : '');
     if (shape) {
       const rows = shape.length, cols = shape[0].length;
-      slot.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-      slot.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+      const grid = document.createElement('div');
+      grid.className = 'piece-grid';
+      grid.style.gridTemplateColumns = `repeat(${cols}, 22px)`;
+      grid.style.gridTemplateRows = `repeat(${rows}, 22px)`;
       shape.forEach(row => row.forEach(v => {
         const pc = document.createElement('div');
         pc.className = 'piece-cell' + (v ? ' on' : '');
-        slot.appendChild(pc);
+        grid.appendChild(pc);
       }));
+      slot.appendChild(grid);
       slot.onclick = () => selectPiece(idx);
       if (draggingPiece === idx) slot.style.outline = '2px solid #7fe8c7';
     }

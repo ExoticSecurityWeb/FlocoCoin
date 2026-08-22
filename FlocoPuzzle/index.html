@@ -9,7 +9,7 @@
   body {
     margin: 0;
     font-family: 'Segoe UI', Arial, sans-serif;
-    background: radial-gradient(circle at top, #0b3a4a 0%, #06202e 55%, #030f18 100%);
+    background: url('assets/bg.png') center top / cover no-repeat fixed;
     color: #eaf6ff;
     min-height: 100vh;
     display: flex;
@@ -17,13 +17,10 @@
     align-items: center;
     padding: 16px;
   }
-  h1 {
+  #logoImg {
+    width: min(80vw, 300px);
     margin: 4px 0 2px;
-    font-size: 24px;
-    background: linear-gradient(90deg, #d8fff0, #7fe8c7, #7fc7ff);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    filter: drop-shadow(0 0 18px rgba(127,230,200,0.5));
   }
   .topbar {
     display: flex;
@@ -71,13 +68,13 @@
     margin-top: 6px;
   }
   .cell {
-    background: rgba(255,255,255,0.05);
-    border-radius: 4px;
+    background: url('assets/tile-empty.png') center/cover;
+    border-radius: 6px;
     transition: background 0.15s ease;
   }
   .cell.filled {
-    background: linear-gradient(135deg, #3fc7a8, #1a6fb5);
-    box-shadow: inset 0 0 4px rgba(255,255,255,0.4);
+    background: url('assets/tile-filled.png') center/cover;
+    box-shadow: 0 0 6px rgba(127,230,200,0.5);
   }
   #tray {
     display: flex;
@@ -99,7 +96,13 @@
   .piece-slot.empty { opacity: 0.25; cursor: default; }
   .piece-cell { background: transparent; border-radius: 2px; }
   .piece-cell.on {
-    background: linear-gradient(135deg, #7fe8c7, #4fa8e8);
+    background: url('assets/tile-filled.png') center/cover;
+    border-radius: 3px;
+  }
+  .floco-count img {
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
   }
   #status {
     margin-top: 14px;
@@ -138,11 +141,11 @@
 </head>
 <body>
 
-<h1>❄️ FLOCO Puzzle</h1>
+<img id="logoImg" src="assets/logo.png" alt="FLOCO Puzzle">
 
 <div class="topbar">
   <div>
-    <div class="floco-count"><span class="icon">❄️</span><span id="score">0</span></div>
+    <div class="floco-count"><img src="assets/floco-coin.png" alt="FLOCO"><span id="score">0</span></div>
     <div id="best">Record : <span id="bestScore">0</span></div>
   </div>
   <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">🦊 Connecter</button>
